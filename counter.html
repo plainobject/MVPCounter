@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>MVPCounter</title>
+    </head>
+    <body>
+        <button class="counter"></button>
+        <script>
+            (function () {
+                'use strict';
+
+                class EventDispatcher {
+                    constructor() {
+                        this.listeners = Object.create(null);
+                    }
+
+                    addListener(type, listener) {
+                        let listeners = this.listeners;
+                        if (typeof listener !== 'function') {
+                            return;
+                        }
+                        listeners[type] = listeners[type] || [];
+                        listeners[type].push(listener);
+                    }
+
+                    dispatchEvent(type, ...args) {
+                        let listeners = this.listeners[type];
+                        if (listeners) {
+                            listeners.slice().forEach((listener) => {
+                                listener.apply(this, args);
+                            });
+                        }
+                    }
+                }
+
+                class View extends EventDispatcher {
+                    constructor(element) {
+                        super();
+                        if (!(element instanceof HTMLElement)) {
+                            throw new Error('Invalid element!');
+                        }
+                        this.element = element;
+                    }
+
+                    setValue(value) {
+                        this.element.textContent = value;
+                    }
+
+                    handleEvent(event) {
+                        this.dispatchEvent(event.type, event);
+                    }
+
+                    bindDOMEvent(type) {
+                        this.element.addEventListener(type, this);
+                    }
+                }
+
+                class Model extends EventDispatcher {
+                    constructor() {
+                        super();
+                        this.properties = Object.create(null);
+                    }
+
+                    getProperty(name) {
+                        return this.properties[name];
+                    }
+
+                    setProperty(name, value) {
+                        var oldValue = this.getProperty(name);
+                        if (value !== oldValue) {
+                            this.properties[name] = value;
+                            this.dispatchEvent('change', name, value, oldValue);
+                        }
+                    }
+                }
+
+                class Presenter extends EventDispatcher {
+                    constructor(view, model) {
+                        super();
+                        if (!(view instanceof View)) {
+                            throw new Error('Invalid view!');
+                        }
+                        if (!(model instanceof Model)) {
+                            throw new Error('Invalid model!');
+                        }
+                        this.view = view;
+                        this.model = model;
+                    }
+                }
+
+                class CounterModel extends Model {
+                    constructor() {
+                        super();
+                        this.setProperty('count', 0);
+                    }
+
+                    getCount() {
+                        return this.getProperty('count');
+                    }
+
+                    increaseCount() {
+                        this.setProperty('count', this.getCount() + 1);
+                    }
+                }
+
+                class CounterPresenter extends Presenter {
+                    constructor(view, model) {
+                        super(view, model);
+                        if (!(model instanceof CounterModel)) {
+                            throw new Error('Invalid model!');
+                        }
+                        view.setValue(model.getCount());
+                        view.addListener('click', () => {
+                            model.increaseCount();
+                        });
+                        view.bindDOMEvent('click');
+                        model.addListener('change', (name, value) => {
+                            if (name === 'count') {
+                                view.setValue(value);
+                            }
+                        });
+                    }
+                }
+
+                new CounterPresenter(
+                    new View(document.querySelector('.counter')),
+                    new CounterModel()
+                );
+            })();
+        </script>
+    </body>
+</html>
